@@ -2,8 +2,6 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended;
-using MonoGame.Framework;
-using MonoGame.OpenGL;
 using System;
 using System.Collections.Generic;
 
@@ -35,6 +33,9 @@ namespace PlanetPhysics
 		private Vector2 mouseCurrentPos;
 		private bool preparingToAdd = false;
 
+		private float desiredRadius = 10;
+		private float desiredMass = 10000;
+
 		Random random = new Random();
 
 		public Game1()
@@ -54,7 +55,7 @@ namespace PlanetPhysics
 
 			// Initialise the system with a bunch of planets
 			// Sun
-			planets.Add(new Planet(Color.Yellow, 60, Vector2.Zero, new Vector2(1, 0), 330000));
+			//planets.Add(new Planet(Color.Yellow, 60, Vector2.Zero, new Vector2(1, 0), 330000));
 
 			// Smaller planets
 			planets.Add(new Planet(Color.CornflowerBlue, 10, new Vector2(120, -120), new Vector2(200, 200), 1));
@@ -63,7 +64,7 @@ namespace PlanetPhysics
 			planets.Add(new Planet(Color.SkyBlue, 10, new Vector2(-120, 120), new Vector2(-200, -200), 1));
 
 			// Small, heavy planet
-			planets.Add(new Planet(Color.SkyBlue, 20, new Vector2(60, -20), new Vector2(-600, 200), 300000));
+			//planets.Add(new Planet(Color.SkyBlue, 20, new Vector2(60, -20), new Vector2(-600, 200), 300000));
 
 			base.Initialize();
 		}
@@ -94,14 +95,30 @@ namespace PlanetPhysics
 
 			MouseState mState = Mouse.GetState();
 
-			// Allow the user to zoom in and out
-			if (mState.ScrollWheelValue > prevScroll)
+			bool zoomedIn = mState.ScrollWheelValue > prevScroll;
+			bool zoomedOut = mState.ScrollWheelValue < prevScroll;
+
+			if (kState.IsKeyDown(Keys.LeftControl))
 			{
-				scaleMod *= 1.1f;
+				if (zoomedIn) desiredRadius *= 1.1f;
+				if (zoomedOut) desiredRadius /= 1.1f;
 			}
-			else if (mState.ScrollWheelValue < prevScroll)
+			if (kState.IsKeyDown(Keys.LeftShift))
 			{
-				scaleMod /= 1.1f;
+				if (zoomedIn) desiredMass *= 1.1f;
+				if (zoomedOut) desiredMass /= 1.1f;
+			}
+			if (kState.IsKeyUp(Keys.LeftControl) && kState.IsKeyUp(Keys.LeftShift))
+			{
+				// Allow the user to zoom in and out
+				if (zoomedIn)
+				{
+					scaleMod *= 1.1f;
+				}
+				else if (zoomedOut)
+				{
+					scaleMod /= 1.1f;
+				}
 			}
 			prevScroll = mState.ScrollWheelValue;
 
@@ -131,7 +148,7 @@ namespace PlanetPhysics
 				
 				Vector2 position = (mouseStartPos - cameraPos) / scaleMod;
 				
-				planets.Add(new Planet(Color.SkyBlue, 10, velocity, position, 1));
+				planets.Add(new Planet(Color.SkyBlue, desiredRadius, velocity, position, desiredMass));
 				
 				debugText = position.ToString();
 			}
@@ -289,7 +306,7 @@ namespace PlanetPhysics
 
 		protected override void Draw(GameTime gameTime)
 		{
-			GraphicsDevice.Clear(new Color(20, 20, 20, 0));
+			GraphicsDevice.Clear(new Color(20, 20, 20));
 
 			_spriteBatch.Begin();
 
@@ -303,7 +320,8 @@ namespace PlanetPhysics
 			// Show the user where they're aiming when preparing to add a new planet
 			if (preparingToAdd) _spriteBatch.DrawLine(mouseStartPos, mouseCurrentPos, Color.Red);
 
-			_spriteBatch.DrawString(debugFont, debugText, Vector2.Zero, new Color(200, 200, 200));
+			//_spriteBatch.DrawString(debugFont, debugText, Vector2.Zero, new Color(200, 200, 200));
+			_spriteBatch.DrawString(debugFont, $"Desired Mass: {desiredMass}\nDesired radius: {desiredRadius}", Vector2.Zero, new Color(200, 200, 200));
 
 			_spriteBatch.End();
 
