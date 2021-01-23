@@ -1,13 +1,10 @@
 ﻿using Microsoft.Xna.Framework;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace PlanetPhysics
 {
 	public class Planet
 	{
-		public Planet(Color colour, float radius, Vector2 velocity, Vector2 displacement, float mass, bool isDebris = false)
+		public Planet(Color colour, float radius, Vector2 velocity, Vector2 displacement, float mass, bool isDebris = false, bool isAsteroid = false)
 		{
 			Colour = colour;
 			Radius = radius;
@@ -15,12 +12,16 @@ namespace PlanetPhysics
 			Displacement = displacement;
 			Mass = mass;
 			IsDebris = isDebris;
+			IsAsteroid = isAsteroid;
 
 			PrevTimeUpdated = 0;
-			PrevPoints = new Vector2[4000];
-			PrevPoints[0] = displacement;
-			PointIndex = 1;
-			HasRepeated = false;
+			if (!IsDebris && !IsAsteroid)
+			{
+				PrevPoints = new Vector2[1000];
+				PrevPoints[0] = displacement;
+				PointIndex = 1;
+				HasRepeated = false;
+			}
 		}
 
 		public Color Colour { get; set; }
@@ -30,6 +31,7 @@ namespace PlanetPhysics
 		public float Mass { get; set; }
 		public Vector2 Forces { get; set; }
 		public bool IsDebris { get; set; }
+		public bool IsAsteroid { get; set; }
 		public float TimeExisted { get; set; }
 
 		public bool HasRepeated { get; set; }
