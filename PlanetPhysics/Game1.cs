@@ -5,6 +5,7 @@ using MonoGame.Extended;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 
 namespace PlanetPhysics
@@ -201,18 +202,30 @@ namespace PlanetPhysics
 				{
 					velocity += focusPlanet.Velocity;
 				}
-				
-				Vector2 position = (mouseStartPos - cameraPos - windowSize / 2) / scaleMod;
+
+				Vector2 position = GetMousePosInSpace(mouseStartPos);
 				
 				planets.Add(new Planet(Color.SkyBlue, desiredRadius, velocity, position, desiredMass));
 				
 				debugText = position.ToString();
 			}
 
+			if (mState.MiddleButton == ButtonState.Pressed)
+			{
+				Vector2 mPosInSpace = GetMousePosInSpace(mouseCurrentPos);
+				Planet nearest = GetNearestPlanetToPoint(mPosInSpace);
+				// If the user middle clicks near enough to the planet, it should still count
+				float leeway = 4;
+				if ((nearest.Displacement - mPosInSpace).LengthSquared() < nearest.Radius * nearest.Radius * leeway)
+				{
+					focusPlanet = nearest;
+				}
+			}
+
 			// Create debris if the right mouse button is held down
 			if (mState.RightButton == ButtonState.Pressed)
 			{
-				Vector2 position = (mState.Position.ToVector2() - cameraPos - windowSize / 2) / scaleMod;
+				Vector2 position = GetMousePosInSpace(mouseCurrentPos);
 				for (int i = 0; i < 10; i++)
 				{
 					random.NextUnitVector(out Vector2 velocity);
@@ -222,6 +235,17 @@ namespace PlanetPhysics
 			}
 
 			base.Update(gameTime);
+		}
+
+		private Vector2 GetMousePosInSpace(Vector2 mousePos)
+		{
+			return (mousePos - cameraPos - windowSize / 2) / scaleMod;
+		}
+
+		private Planet GetNearestPlanetToPoint(Vector2 point)
+		{
+			Planet[] pLocal = planets.ToArray();
+			return pLocal.Aggregate((curMin, p) => curMin == null || (p.Displacement - point).LengthSquared() < (curMin.Displacement - point).LengthSquared() ? p : curMin);
 		}
 
 		private void PhysicsUpdate()
