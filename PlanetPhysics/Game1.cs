@@ -51,7 +51,7 @@ namespace PlanetPhysics
 			_graphics = new GraphicsDeviceManager(this);
 			Content.RootDirectory = "Content";
 			IsMouseVisible = true;
-			cameraPos = windowSize / 2;
+			cameraPos = Vector2.Zero;
 		}
 
 		protected override void Initialize()
@@ -159,21 +159,16 @@ namespace PlanetPhysics
 			}
 			if (kState.IsKeyUp(Keys.LeftControl) && kState.IsKeyUp(Keys.LeftShift))
 			{
-				// TODO: Should zoom out from centre of screen
-				//if (zoomedIn || zoomedOut)
-				//{
-				//	cameraPos -= windowSize / 2;
-				//	cameraPos /= scaleMod;
-				//}
-
 				// Allow the user to zoom in and out
 				if (zoomedIn)
 				{
 					scaleMod *= 1.1f;
+					cameraPos *= 1.1f;
 				}
 				else if (zoomedOut)
 				{
 					scaleMod /= 1.1f;
+					cameraPos /= 1.1f;
 				}
 			}
 			prevScroll = mState.ScrollWheelValue;
@@ -207,7 +202,7 @@ namespace PlanetPhysics
 					velocity += focusPlanet.Velocity;
 				}
 				
-				Vector2 position = (mouseStartPos - cameraPos) / scaleMod;
+				Vector2 position = (mouseStartPos - cameraPos - windowSize / 2) / scaleMod;
 				
 				planets.Add(new Planet(Color.SkyBlue, desiredRadius, velocity, position, desiredMass));
 				
@@ -217,7 +212,7 @@ namespace PlanetPhysics
 			// Create debris if the right mouse button is held down
 			if (mState.RightButton == ButtonState.Pressed)
 			{
-				Vector2 position = (mState.Position.ToVector2() - cameraPos) / scaleMod;
+				Vector2 position = (mState.Position.ToVector2() - cameraPos - windowSize / 2) / scaleMod;
 				for (int i = 0; i < 10; i++)
 				{
 					random.NextUnitVector(out Vector2 velocity);
@@ -393,7 +388,7 @@ namespace PlanetPhysics
 
 				if (!(focusPlanet is null))
 				{
-					cameraPos = -focusPlanet.Displacement * scaleMod + windowSize / 2;
+					cameraPos = -focusPlanet.Displacement * scaleMod;
 				}
 
 				foreach (Planet p in toRemove) planets.Remove(p);
@@ -453,8 +448,8 @@ namespace PlanetPhysics
 
 			foreach (Planet p in ps)
 			{
-				if (p.IsDebris || p.IsAsteroid) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos, p.Colour, MathF.Max(0.05f * scaleMod, 1));
-				else _spriteBatch.DrawCircle(p.Displacement * scaleMod + cameraPos, p.Radius * scaleMod, 20, p.Colour, p.Radius / 5 * scaleMod);
+				if (p.IsDebris || p.IsAsteroid) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Colour, MathF.Max(0.05f * scaleMod, 1));
+				else _spriteBatch.DrawCircle(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Radius * scaleMod, 20, p.Colour, p.Radius / 5 * scaleMod);
 			}
 			// Show the user where they're aiming when preparing to add a new planet
 			if (preparingToAdd) _spriteBatch.DrawLine(mouseStartPos, mouseCurrentPos, Color.Red);
@@ -471,7 +466,7 @@ namespace PlanetPhysics
 		{
 			i -= index;
 			if (i < 0) i += totalCount;
-			_spriteBatch.DrawLine(p1 * scaleMod + cameraPos, p2 * scaleMod + cameraPos, colour * ((float)i / totalCount), 1);
+			_spriteBatch.DrawLine(p1 * scaleMod + cameraPos + windowSize / 2, p2 * scaleMod + cameraPos + windowSize / 2, colour * ((float)i / totalCount), 1);
 		}
 	}
 }
