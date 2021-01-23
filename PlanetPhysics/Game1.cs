@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 
 namespace PlanetPhysics
 {
@@ -26,17 +28,23 @@ namespace PlanetPhysics
 		private List<Planet> toRemove = new List<Planet>();
 
 		private Vector2 cameraPos;
-		private float scaleMod = 1;
+		private float scaleMod = 80;
 		private int prevScroll = 0;
+
+		private Vector2 sysBaseVel = new Vector2(10, -10);
 
 		private Vector2 mouseStartPos;
 		private Vector2 mouseCurrentPos;
 		private bool preparingToAdd = false;
 
-		private float desiredRadius = 10;
-		private float desiredMass = 10000;
+		private float desiredRadius = 0.1f;
+		private float desiredMass = 10;
+
+		private Planet focusPlanet;
 
 		Random random = new Random();
+
+		private Thread physicsThread;
 
 		public Game1()
 		{
@@ -53,20 +61,42 @@ namespace PlanetPhysics
 			_graphics.PreferredBackBufferHeight = (int)windowSize.Y;
 			_graphics.ApplyChanges();
 
-			// Initialise the system with a bunch of planets
-			// Sun
-			//planets.Add(new Planet(Color.Yellow, 60, Vector2.Zero, new Vector2(1, 0), 330000));
+			bool shouldGenSystem = true;
 
-			// Smaller planets
-			planets.Add(new Planet(Color.CornflowerBlue, 10, new Vector2(120, -120), new Vector2(200, 200), 1));
-			planets.Add(new Planet(Color.CadetBlue, 10, new Vector2(120, 120), new Vector2(-200, 200), 1));
-			planets.Add(new Planet(Color.LightBlue, 10, new Vector2(-120, -120), new Vector2(200, -200), 1));
-			planets.Add(new Planet(Color.SkyBlue, 10, new Vector2(-120, 120), new Vector2(-200, -200), 1));
+			if (shouldGenSystem)
+			{
+				// Initialise the system with a bunch of planets
+				// Sun
+				planets.Add(new Planet(Color.Yellow, 0.2f, sysBaseVel, Vector2.Zero, 1000));
+				focusPlanet = planets[0];
 
-			// Small, heavy planet
-			//planets.Add(new Planet(Color.SkyBlue, 20, new Vector2(60, -20), new Vector2(-600, 200), 300000));
+				planets.Add(new Planet(Color.Red, 0.05f, new Vector2(0, 30) + sysBaseVel, new Vector2(1, 0), 1));
+
+				planets.Add(new Planet(Color.Blue, 0.075f, new Vector2(-17.5f, 0) + sysBaseVel, new Vector2(0, 3), 2));
+
+				planets.Add(new Planet(Color.Green, 0.1f, new Vector2(16, 0) + sysBaseVel, new Vector2(0, -4), 10));
+
+				planets.Add(new Planet(Color.White, 0.05f, new Vector2(-2, -2) + sysBaseVel, new Vector2(-6, 6), 0.5f));
+
+				GenAsteroidBelt(6, 7, 1000);
+				GenAsteroidBelt(1.5f, 2.5f, 300);
+			}
 
 			base.Initialize();
+
+			physicsThread = new Thread(PhysicsUpdate) { IsBackground = true };
+			physicsThread.Start();
+		}
+
+		private void GenAsteroidBelt(float rMin, float rMax, int astCount)
+		{
+			for (int i = 0; i < astCount; i++)
+			{
+				float rOrbit = rMin + (float)random.NextDouble() * (rMax - rMin);
+				float pos = (float)random.NextDouble() * 2 * MathF.PI;
+				float vel = MathF.Sqrt(planets[0].Mass / rOrbit);
+				planets.Add(new Planet(Color.Gray, 1, vel * new Vector2(-MathF.Sin(pos), MathF.Cos(pos)) + sysBaseVel, rOrbit * new Vector2(MathF.Cos(pos), MathF.Sin(pos)), 1, true));
+			}
 		}
 
 		protected override void LoadContent()
@@ -110,6 +140,13 @@ namespace PlanetPhysics
 			}
 			if (kState.IsKeyUp(Keys.LeftControl) && kState.IsKeyUp(Keys.LeftShift))
 			{
+				// TODO: Should zoom out from centre of screen
+				//if (zoomedIn || zoomedOut)
+				//{
+				//	cameraPos -= windowSize / 2;
+				//	cameraPos /= scaleMod;
+				//}
+
 				// Allow the user to zoom in and out
 				if (zoomedIn)
 				{
@@ -145,6 +182,11 @@ namespace PlanetPhysics
 				length /= 100;
 				if (length > 0) velocity = mouseDiff.NormalizedCopy() * length;
 				else velocity = Vector2.Zero;
+
+				if (!(focusPlanet is null))
+				{
+					velocity += focusPlanet.Velocity;
+				}
 				
 				Vector2 position = (mouseStartPos - cameraPos) / scaleMod;
 				
@@ -165,122 +207,176 @@ namespace PlanetPhysics
 				}
 			}
 
-			float tPassed = gameTime.GetElapsedSeconds();
+			base.Update(gameTime);
+		}
 
-			// Update the time existed and check if debris should be removed
-			foreach (Planet p in planets)
+		private void PhysicsUpdate()
+		{
+			Stopwatch watch = new Stopwatch();
+			watch.Start();
+			while (true)
 			{
-				p.TimeExisted += tPassed;
+				float tPassed = watch.ElapsedMilliseconds / 1000f / 10f;
+				watch.Restart();
+				// Update the time existed and check if debris should be removed
+				Planet[] pArr = planets.ToArray();
 
-				// Remove debris after it has existed for roughly 15 seconds to help improve performance
-				if (p.IsDebris && p.TimeExisted > 15)
+				foreach (Planet p in pArr)
 				{
-					toRemove.Add(p);
-					continue;
-				}
-			}
+					p.TimeExisted += tPassed;
 
-			// Update the forces on all planets
-			foreach (Planet p in planets)
-			{
-				// If a planet is about to be removed, there is no point in considering where it is going to go
-				if (toRemove.Contains(p)) continue;
-
-				Vector2 forces = p.Forces;
-
-				foreach (Planet pOther in planets)
-				{
-					// A planet cannot apply forces to itself
-					if (pOther == p) continue;
-					// Ignore forces from debris
-					if (pOther.IsDebris) continue;
-
-					float distSqr = (p.Displacement - pOther.Displacement).LengthSquared();
-
-					Vector2 direction = (p.Displacement - pOther.Displacement).NormalizedCopy();
-
-					// Calculate gravity. TODO: Scale is way off
-					float f = 30 * p.Mass * pOther.Mass / distSqr;
-
-					forces -= direction * f;
-				}
-
-				p.Forces = forces;
-			}
-
-			// Deal with collisions
-			foreach (Planet p in planets)
-			{
-				if (toRemove.Contains(p)) continue;
-
-				foreach (Planet pColliding in planets)
-				{
-					// A planet cannot collide with itself
-					if (pColliding == p) continue;
-					// To increase performance, debris only needs to be checked once, as it is immediately removed on collisions
-					if (pColliding.IsDebris) continue;
-					// Ignore collisions if they are both debris
-					if (p.IsDebris && pColliding.IsDebris) continue;
-
-					// If the two planets are colliding
-					float dist = (p.Displacement - pColliding.Displacement).Length();
-					if (dist < pColliding.Radius + p.Radius)
+					// Remove debris after it has existed for roughly 15 seconds to help improve performance
+					if (p.IsDebris && p.TimeExisted > 15)
 					{
-						// Remove debris when it collides with other planets without updating mass, velocity etc. of the planet it collides with
-						if (p.IsDebris) toRemove.Add(p);
-						if (pColliding.IsDebris) toRemove.Add(pColliding);
-						if (p.IsDebris || pColliding.IsDebris) continue;
-
-						// Both planets are removed and replaced with a new one
 						toRemove.Add(p);
-						toRemove.Add(pColliding);
-
-						// The colour of the new planet should be somewhere between the old two colours, based on their masses
-						Color newC = Color.Lerp(pColliding.Colour, p.Colour, p.Mass / pColliding.Mass);
-
-						// Work out the areas of both planets
-						// Note: No need to multiply by pi here, as to work out the new radius you'd need to divide by pi again
-						float a1 = p.Radius * p.Radius;
-						float a2 = pColliding.Radius * pColliding.Radius;
-						// Work out the new radius
-						float newR = MathF.Sqrt(a1 + a2);
-
-						// Work out new velocity based on conservation of momentum
-						Vector2 newV = (p.Velocity * p.Mass + pColliding.Velocity * pColliding.Mass) / (pColliding.Mass + p.Mass);
-
-						// The new displacement should be somewhere between the old two
-						// Work out where based on masses of planets
-						Vector2 newD = (p.Displacement * p.Mass + pColliding.Displacement * pColliding.Mass) / (pColliding.Mass + p.Mass);
-
-						// Create the new planet
-						Planet newP = new Planet(newC, newR, newV, newD, p.Mass + pColliding.Mass);
-						toAdd.Add(newP);
-
-						// Add some debris 
-						AddDebris(newP, newC);
+						continue;
 					}
 				}
+
+				// Update the forces on all planets
+				foreach (Planet p in pArr)
+				{
+					// If a planet is about to be removed, there is no point in considering where it is going to go
+					if (toRemove.Contains(p)) continue;
+
+					Vector2 forces = p.Forces;
+
+					foreach (Planet pOther in pArr)
+					{
+						// A planet cannot apply forces to itself
+						if (pOther == p) continue;
+						// Ignore forces from debris
+						if (pOther.IsDebris) continue;
+
+						float distSqr = (p.Displacement - pOther.Displacement).LengthSquared();
+
+						Vector2 direction = (p.Displacement - pOther.Displacement).NormalizedCopy();
+
+						// Calculate gravity.
+						float f = p.Mass * pOther.Mass / distSqr;
+
+						forces -= direction * f;
+					}
+
+					p.Forces = forces;
+				}
+
+				// Deal with collisions
+				// TODO: Currently disabled
+				foreach (Planet p in pArr)
+				{
+					continue;
+					foreach (Planet pColliding in pArr)
+					{
+						// A planet cannot collide with itself
+						if (pColliding == p) continue;
+						// To increase performance, debris only needs to be checked once, as it is immediately removed on collisions
+						if (pColliding.IsDebris) continue;
+						// Ignore collisions if they are both debris
+						if (p.IsDebris && pColliding.IsDebris) continue;
+
+						// If the two planets are colliding
+						float dist = (p.Displacement - pColliding.Displacement).Length();
+						dist = MathF.Max(dist, (p.Radius + pColliding.Radius));
+						if (dist < pColliding.Radius + p.Radius)
+						{
+							float distMult = 1 / ((dist - p.Radius) / pColliding.Radius);
+							p.Forces += (p.Displacement - pColliding.Displacement).NormalizedCopy() * distMult * distMult * pColliding.Mass / p.Mass * 10000000;
+						}
+					}
+
+
+					continue;
+					if (toRemove.Contains(p)) continue;
+
+					foreach (Planet pColliding in pArr)
+					{
+						// A planet cannot collide with itself
+						if (pColliding == p) continue;
+						// To increase performance, debris only needs to be checked once, as it is immediately removed on collisions
+						if (pColliding.IsDebris) continue;
+						// Ignore collisions if they are both debris
+						if (p.IsDebris && pColliding.IsDebris) continue;
+
+						// If the two planets are colliding
+						float dist = (p.Displacement - pColliding.Displacement).Length();
+						if (dist < pColliding.Radius + p.Radius)
+						{
+							// Remove debris when it collides with other planets without updating mass, velocity etc. of the planet it collides with
+							if (p.IsDebris) toRemove.Add(p);
+							if (pColliding.IsDebris) toRemove.Add(pColliding);
+							if (p.IsDebris || pColliding.IsDebris) continue;
+
+							// Both planets are removed and replaced with a new one
+							toRemove.Add(p);
+							toRemove.Add(pColliding);
+
+							// The colour of the new planet should be somewhere between the old two colours, based on their masses
+							Color newC = Color.Lerp(pColliding.Colour, p.Colour, p.Mass / pColliding.Mass);
+
+							// Work out the areas of both planets
+							// Note: No need to multiply by pi here, as to work out the new radius you'd need to divide by pi again
+							float a1 = p.Radius * p.Radius;
+							float a2 = pColliding.Radius * pColliding.Radius;
+							// Work out the new radius
+							float newR = MathF.Sqrt(a1 + a2);
+
+							// Work out new velocity based on conservation of momentum
+							Vector2 newV = (p.Velocity * p.Mass + pColliding.Velocity * pColliding.Mass) / (pColliding.Mass + p.Mass);
+
+							// The new displacement should be somewhere between the old two
+							// Work out where based on masses of planets
+							Vector2 newD = (p.Displacement * p.Mass + pColliding.Displacement * pColliding.Mass) / (pColliding.Mass + p.Mass);
+
+							// Create the new planet
+							Planet newP = new Planet(newC, newR, newV, newD, p.Mass + pColliding.Mass);
+							toAdd.Add(newP);
+
+							// Add some debris 
+							AddDebris(newP, newC);
+						}
+					}
+				}
+
+				foreach (Planet p in pArr)
+				{
+					if (toRemove.Contains(p)) continue;
+
+					// Update velocity
+					p.Velocity += p.Forces / p.Mass * tPassed;
+					// Update displacement
+					p.Displacement += p.Velocity * tPassed;
+					// Reset forces
+					p.Forces = Vector2.Zero;
+
+					if (Math.Round(p.TimeExisted, 3, MidpointRounding.ToZero) > Math.Round(p.PrevTimeUpdated, 3, MidpointRounding.ToZero))
+					{
+						p.PointIndex++;
+						if (p.PointIndex == p.PrevPoints.Length)
+						{
+							p.PointIndex = 0;
+							p.HasRepeated = true;
+						}
+					}
+
+					p.PrevPoints[p.PointIndex] = p.Displacement;
+
+					p.PrevTimeUpdated = p.TimeExisted;
+				}
+
+				if (!(focusPlanet is null))
+				{
+					cameraPos = -focusPlanet.Displacement * scaleMod + windowSize / 2;
+				}
+
+				foreach (Planet p in toRemove) planets.Remove(p);
+				planets.AddRange(toAdd);
+
+				toRemove.Clear();
+				toAdd.Clear();
+
+				while (watch.Elapsed.TotalMilliseconds <= 1) { }
 			}
-
-			foreach (Planet p in planets)
-			{
-				if (toRemove.Contains(p)) continue;
-
-				// Update velocity
-				p.Velocity += p.Forces / p.Mass * tPassed;
-				// Update displacement
-				p.Displacement += p.Velocity * tPassed;
-				// Reset forces
-				p.Forces = Vector2.Zero;
-			}
-
-			foreach (Planet p in toRemove) planets.Remove(p);
-			planets.AddRange(toAdd);
-
-			toRemove.Clear();
-			toAdd.Clear();
-
-			base.Update(gameTime);
 		}
 
 		private void AddDebris(Planet planet, Color colour)
@@ -309,14 +405,28 @@ namespace PlanetPhysics
 			GraphicsDevice.Clear(new Color(20, 20, 20));
 
 			_spriteBatch.Begin();
-
 			// Draw all planets
-			foreach (Planet p in planets)
+			Planet[] ps = planets.ToArray();
+
+			// Draw trails
+			foreach (Planet p in ps)
 			{
-				if (p.IsDebris) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos, p.Colour, MathF.Max(2 * scaleMod, 1));
-				else _spriteBatch.DrawCircle(p.Displacement * scaleMod + cameraPos, p.Radius * scaleMod, 20, p.Colour, 4 * scaleMod);
+				if (p.IsDebris) continue;
+
+				for (int i = 0; i < p.PrevPoints.Length - 1; i++)
+				{
+					if (i == p.PointIndex) continue;
+					DrawTrailPoint(p.PrevPoints[i], p.PrevPoints[i + 1], p.Colour);
+				}
+				
+				if (p.PointIndex != p.PrevPoints.Length - 1 && p.HasRepeated) DrawTrailPoint(p.PrevPoints[0], p.PrevPoints[^1], p.Colour);
 			}
 
+			foreach (Planet p in ps)
+			{
+				if (p.IsDebris) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos, p.Colour, MathF.Max(0.05f * scaleMod, 1));
+				else _spriteBatch.DrawCircle(p.Displacement * scaleMod + cameraPos, p.Radius * scaleMod, 20, p.Colour, 0.05f * scaleMod);
+			}
 			// Show the user where they're aiming when preparing to add a new planet
 			if (preparingToAdd) _spriteBatch.DrawLine(mouseStartPos, mouseCurrentPos, Color.Red);
 
@@ -326,6 +436,11 @@ namespace PlanetPhysics
 			_spriteBatch.End();
 
 			base.Draw(gameTime);
+		}
+
+		private void DrawTrailPoint(Vector2 p1, Vector2 p2, Color colour)
+		{
+			_spriteBatch.DrawLine(p1 * scaleMod + cameraPos, p2 * scaleMod + cameraPos, colour, 3);
 		}
 	}
 }
