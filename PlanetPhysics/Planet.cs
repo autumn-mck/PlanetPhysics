@@ -15,6 +15,12 @@ namespace PlanetPhysics
 			Displacement = displacement;
 			Mass = mass;
 			IsDebris = isDebris;
+
+			PrevTimeUpdated = 0;
+			PrevPoints = new Vector2[4000];
+			PrevPoints[0] = displacement;
+			PointIndex = 1;
+			HasRepeated = false;
 		}
 
 		public Color Colour { get; set; }
@@ -25,5 +31,10 @@ namespace PlanetPhysics
 		public Vector2 Forces { get; set; }
 		public bool IsDebris { get; set; }
 		public float TimeExisted { get; set; }
+
+		public bool HasRepeated { get; set; }
+		public int PointIndex { get; set; }
+		public float PrevTimeUpdated { get; set; }
+		public Vector2[] PrevPoints { get; set; }
 	}
 }
