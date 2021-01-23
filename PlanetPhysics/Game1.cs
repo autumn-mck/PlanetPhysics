@@ -440,6 +440,13 @@ namespace PlanetPhysics
 				for (int i = 0; i < count - 1; i++)
 				{
 					if (i == p.PointIndex) continue;
+
+					// Note: Not ideal, as it prevents any lines to/from (0, 0)
+					// Currently, this fixes the issue of newly-added planets having trails to (0, 0)
+					// However, it is extremely unlikely any planet will spend long at *exactly* (0, 0), meaning this is not a serious issue
+					if (p.PrevPoints[i + 1] == Vector2.Zero) continue;
+					if (p.PrevPoints[i] == Vector2.Zero) continue;
+
 					DrawTrailPoint(p.PrevPoints[i], p.PrevPoints[i + 1], p.Colour, p.PointIndex, i, count);
 				}
 				
