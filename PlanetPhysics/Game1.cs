@@ -69,7 +69,7 @@ namespace PlanetPhysics
 			_graphics.PreferredBackBufferHeight = (int)windowSize.Y;
 			_graphics.ApplyChanges();
 
-			GenSystem(5);
+			GenSystem(1);
 
 			base.Initialize();
 
@@ -220,7 +220,7 @@ namespace PlanetPhysics
 				Vector2 mPosInSpace = GetMousePosInSpace(mouseCurrentPos);
 				Planet nearest = GetNearestPlanetToPoint(mPosInSpace);
 				// If the user middle clicks near enough to the planet, it should still count
-				float leeway = 4;
+				float leeway = 16;
 				if ((nearest.Displacement - mPosInSpace).LengthSquared() < nearest.Radius * nearest.Radius * leeway)
 				{
 					focusPlanet = nearest;
@@ -230,13 +230,14 @@ namespace PlanetPhysics
 			// Create debris if the right mouse button is held down
 			if (mState.RightButton == ButtonState.Pressed)
 			{
-				Vector2 position = GetMousePosInSpace(mouseCurrentPos);
-				for (int i = 0; i < 10; i++)
-				{
-					random.NextUnitVector(out Vector2 velocity);
-					Planet particle = new Planet(Color.SkyBlue, 0.01f, velocity * random.Next(6, 7) + planets[0].Velocity, position, 1000, true);
-					planets.Add(particle);
-				}
+				focusPlanet = null;
+				//Vector2 position = GetMousePosInSpace(mouseCurrentPos);
+				//for (int i = 0; i < 10; i++)
+				//{
+				//	random.NextUnitVector(out Vector2 velocity);
+				//	Planet particle = new Planet(Color.SkyBlue, 0.01f, velocity * random.Next(6, 7) + planets[0].Velocity, position, 1000, true);
+				//	planets.Add(particle);
+				//}
 			}
 
 			prevKeysDown = kState.GetPressedKeys();
@@ -295,8 +296,8 @@ namespace PlanetPhysics
 			GenAsteroidBelt(0.15f, 0.3f, 50, planets[^2], -1);
 
 			GenPlanetWOrbit(sun, new Vector2(-15, 0), Color.Gold, 0.17f, 5, -1);
-			focusPlanet = planets[^1];
-			drawLinesRelativeTo = planets[^1];
+			//focusPlanet = planets[^1];
+			//drawLinesRelativeTo = planets[^1];
 			GenPlanetWOrbit(planets[^1], new Vector2(-0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, 1f);
 			GenPlanetWOrbit(planets[^2], new Vector2(0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -1f);
 
