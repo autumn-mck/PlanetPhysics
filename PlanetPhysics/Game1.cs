@@ -51,6 +51,7 @@ namespace PlanetPhysics
 		private Random random = new Random();
 
 		private Keys[] prevKeysDown = { };
+		private MouseState prevMState;
 
 		private Thread physicsThread;
 
@@ -215,7 +216,7 @@ namespace PlanetPhysics
 				debugText = position.ToString();
 			}
 
-			if (mState.MiddleButton == ButtonState.Pressed)
+			if (mState.MiddleButton == ButtonState.Pressed && prevMState.MiddleButton == ButtonState.Released)
 			{
 				Vector2 mPosInSpace = GetMousePosInSpace(mouseCurrentPos);
 				Planet nearest = GetNearestPlanetToPoint(mPosInSpace);
@@ -223,7 +224,8 @@ namespace PlanetPhysics
 				float leeway = 16;
 				if ((nearest.Displacement - mPosInSpace).LengthSquared() < nearest.Radius * nearest.Radius * leeway)
 				{
-					focusPlanet = nearest;
+					if (focusPlanet == nearest) drawLinesRelativeTo = nearest;
+					else focusPlanet = nearest;
 				}
 			}
 
@@ -241,7 +243,7 @@ namespace PlanetPhysics
 			}
 
 			prevKeysDown = kState.GetPressedKeys();
-
+			prevMState = mState;
 			base.Update(gameTime);
 		}
 
