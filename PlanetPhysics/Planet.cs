@@ -17,9 +17,8 @@ namespace PlanetPhysics
 			PrevTimeUpdated = 0;
 			if (!IsDebris && !IsAsteroid)
 			{
-				PrevPoints = new Vector2[1000];
-				PrevPoints[0] = displacement;
-				PointIndex = 1;
+				PrevPoints = new Vector2[4000];
+				PointIndex = 0;
 				HasRepeated = false;
 			}
 		}
