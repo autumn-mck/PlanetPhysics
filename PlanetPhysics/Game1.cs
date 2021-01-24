@@ -42,8 +42,11 @@ namespace PlanetPhysics
 		private float desiredMass = 10;
 
 		private Planet focusPlanet;
+		private Planet drawLinesRelativeTo;
 
-		Random random = new Random();
+		private Random random = new Random();
+
+		private Keys[] prevKeysDown = { };
 
 		private Thread physicsThread;
 
@@ -62,37 +65,7 @@ namespace PlanetPhysics
 			_graphics.PreferredBackBufferHeight = (int)windowSize.Y;
 			_graphics.ApplyChanges();
 
-			bool shouldGenSystem = true;
-
-			if (shouldGenSystem)
-			{
-				//sysBaseVel = new Vector2(10, -10);
-
-				// Initialise the system with a bunch of planets
-				// Sun
-				Planet sun = new Planet(Color.Yellow, 0.2f, sysBaseVel, Vector2.Zero, 1000);
-				planets.Add(sun);
-
-				GenPlanetWOrbit(sun, new Vector2(1, 0), Color.Red, 0.05f, 05f, 1);
-
-				GenPlanetWOrbit(sun, new Vector2(0, 3.5f), Color.Blue, 0.075f, 1, 1);
-				GenPlanetWOrbit(sun, new Vector2(0, -4.5f), Color.Purple, 0.075f, 1, 1);
-
-				GenPlanetWOrbit(sun, new Vector2(0, -10), Color.Green, 0.1f, 5, 1);
-				GenPlanetWOrbit(planets[^1], new Vector2(0, -0.3f), new Color(192, 164, 0), 0.01f, 0.01f, 1.5f);
-
-				GenPlanetWOrbit(sun, new Vector2(-15, 0), Color.Gold, 0.17f, 5, -1);
-				GenPlanetWOrbit(planets[^1], new Vector2(-0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -1.7f);
-
-				// Comet
-				planets.Add(new Planet(Color.White, 0.05f, new Vector2(-2, -2) + sysBaseVel, new Vector2(-6, 6), 0.5f));
-
-				GenAsteroidBelt(6, 7, 500);
-				GenAsteroidBelt(1.5f, 2.5f, 150);
-				GenAsteroidBelt(19, 22, 1000);
-
-				//focusPlanet = planets[0];
-			}
+			GenSystem(2);
 
 			base.Initialize();
 
@@ -108,13 +81,13 @@ namespace PlanetPhysics
 			planets.Add(new Planet(colour, radius, vel * new Vector2(-MathF.Sin(angle), MathF.Cos(angle)) + sysBaseVel, toOrbit.Displacement + diff, mass));
 		}
 
-		private void GenAsteroidBelt(float rMin, float rMax, int astCount)
+		private void GenAsteroidBelt(float rMin, float rMax, int astCount, float aroundMass)
 		{
 			for (int i = 0; i < astCount; i++)
 			{
 				float rOrbit = rMin + (float)random.NextDouble() * (rMax - rMin);
 				float pos = (float)random.NextDouble() * 2 * MathF.PI;
-				float vel = MathF.Sqrt(planets[0].Mass / rOrbit);
+				float vel = MathF.Sqrt(aroundMass / rOrbit);
 				planets.Add(new Planet(Color.Gray, 0.01f, vel * new Vector2(-MathF.Sin(pos), MathF.Cos(pos)) + sysBaseVel, rOrbit * new Vector2(MathF.Cos(pos), MathF.Sin(pos)), 1, false, true));
 			}
 		}
@@ -133,6 +106,19 @@ namespace PlanetPhysics
 			// Allow the user to exit by pressing the escape key
 			if (kState.IsKeyDown(Keys.Escape))
 				Exit();
+
+			if (!prevKeysDown.Contains(Keys.F1) && kState.IsKeyDown(Keys.F1))
+			{
+				GenSystem(1);
+			}
+			else if (!prevKeysDown.Contains(Keys.F2) && kState.IsKeyDown(Keys.F2))
+			{
+				GenSystem(2);
+			}
+			else if (!prevKeysDown.Contains(Keys.F12) && kState.IsKeyDown(Keys.F12))
+			{
+				GenSystem(0);
+			}
 
 			// Allow the camera position to be changed
 			float moveSpeed = 4;
@@ -202,9 +188,9 @@ namespace PlanetPhysics
 				{
 					velocity += focusPlanet.Velocity;
 				}
-
-				Vector2 position = GetMousePosInSpace(mouseStartPos);
 				
+				Vector2 position = GetMousePosInSpace(mouseStartPos);
+
 				planets.Add(new Planet(Color.SkyBlue, desiredRadius, velocity, position, desiredMass));
 				
 				debugText = position.ToString();
@@ -234,7 +220,57 @@ namespace PlanetPhysics
 				}
 			}
 
+			prevKeysDown = kState.GetPressedKeys();
+
 			base.Update(gameTime);
+		}
+
+		private void GenSystem(int sysID)
+		{
+			planets.Clear();
+			cameraPos = Vector2.Zero;
+
+			if (sysID == 1)
+			{
+				//sysBaseVel = new Vector2(10, -10);
+				scaleMod = 80;
+				// Initialise the system with a bunch of planets
+				// Sun
+				Planet sun = new Planet(Color.Yellow, 0.2f, sysBaseVel, Vector2.Zero, 1000);
+				planets.Add(sun);
+
+				GenPlanetWOrbit(sun, new Vector2(1, 0), Color.Red, 0.05f, 05f, 1);
+
+				GenPlanetWOrbit(sun, new Vector2(0, 3.5f), Color.Blue, 0.075f, 1, 1);
+				GenPlanetWOrbit(sun, new Vector2(0, -4.5f), Color.Purple, 0.075f, 1, 1);
+
+				GenPlanetWOrbit(sun, new Vector2(0, -10), Color.Green, 0.1f, 5, 1);
+				GenPlanetWOrbit(planets[^1], new Vector2(0, -0.3f), new Color(192, 164, 0), 0.01f, 0.01f, 1.5f);
+
+				GenPlanetWOrbit(sun, new Vector2(-15, 0), Color.Gold, 0.17f, 5, -1);
+				GenPlanetWOrbit(planets[^1], new Vector2(-0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -1.7f);
+				GenPlanetWOrbit(planets[^2], new Vector2(0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -3.5f);
+
+				// Comet
+				planets.Add(new Planet(Color.White, 0.05f, new Vector2(-2, -2) + sysBaseVel, new Vector2(-6, 6), 0.5f));
+
+				GenAsteroidBelt(6, 7, 500, planets[0].Mass);
+				GenAsteroidBelt(1.5f, 2.5f, 150, planets[0].Mass);
+				GenAsteroidBelt(19, 22, 1000, planets[0].Mass);
+
+				focusPlanet = planets[0];
+				drawLinesRelativeTo = planets[0];
+			}
+			else if (sysID == 2)
+			{
+				scaleMod = 88;
+				Vector2 vel = new Vector2(0.93240737f, 0.86473146f);
+				Vector2 pos1 = new Vector2(-0.97000436f, 0.24308753f);
+				planets.Add(new Planet(Color.Red, 0.1f, -vel / 2, pos1, 1));
+				planets.Add(new Planet(Color.Green, 0.1f, -vel / 2, -pos1, 1));
+				planets.Add(new Planet(Color.Blue, 0.1f, vel, new Vector2(0, 0), 1)); ;
+				GenAsteroidBelt(1, 10, 1000, 3);
+			}
 		}
 
 		private Vector2 GetMousePosInSpace(Vector2 mousePos)
@@ -405,6 +441,10 @@ namespace PlanetPhysics
 							}
 						}
 						p.PrevPoints[p.PointIndex] = p.Displacement;
+						if (!(drawLinesRelativeTo is null))
+						{
+							p.PrevPoints[p.PointIndex] -= drawLinesRelativeTo.Displacement;
+						}
 					}
 
 					p.PrevTimeUpdated = p.TimeExisted;
@@ -497,7 +537,14 @@ namespace PlanetPhysics
 		{
 			i -= index;
 			if (i < 0) i += totalCount;
-			_spriteBatch.DrawLine(p1 * scaleMod + cameraPos + windowSize / 2, p2 * scaleMod + cameraPos + windowSize / 2, colour * ((float)i / totalCount), 1);
+			if (!(drawLinesRelativeTo is null))
+			{
+				p1 += drawLinesRelativeTo.Displacement;
+				p2 += drawLinesRelativeTo.Displacement;
+			}
+			Vector2 point1 = p1 * scaleMod + cameraPos + windowSize / 2;
+			Vector2 point2 = p2 * scaleMod + cameraPos + windowSize / 2;
+			_spriteBatch.DrawLine(point1, point2, colour * ((float)i / totalCount), 2);
 		}
 	}
 }
