@@ -66,7 +66,7 @@ namespace PlanetPhysics
 			_graphics.PreferredBackBufferHeight = (int)windowSize.Y;
 			_graphics.ApplyChanges();
 
-			GenSystem(1);
+			GenSystem(3);
 
 			base.Initialize();
 
@@ -117,6 +117,10 @@ namespace PlanetPhysics
 			else if (!prevKeysDown.Contains(Keys.F2) && kState.IsKeyDown(Keys.F2))
 			{
 				GenSystem(2);
+			}
+			else if (!prevKeysDown.Contains(Keys.F3) && kState.IsKeyDown(Keys.F3))
+			{
+				GenSystem(3);
 			}
 			else if (!prevKeysDown.Contains(Keys.F12) && kState.IsKeyDown(Keys.F12))
 			{
@@ -236,7 +240,7 @@ namespace PlanetPhysics
 			if (sysID == 1)
 			{
 				timeMod = 0.01f;
-				//sysBaseVel = new Vector2(10, -10);
+				sysBaseVel = new Vector2(0, 0);
 				scaleMod = 80;
 				// Initialise the system with a bunch of planets
 				// Sun
@@ -276,6 +280,26 @@ namespace PlanetPhysics
 				planets.Add(new Planet(Color.Green, 0.1f, -vel / 2, -pos1, 1));
 				planets.Add(new Planet(Color.Blue, 0.1f, vel, new Vector2(0, 0), 1)); ;
 				GenAsteroidBelt(1, 10, 1000, new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 3), 1);
+			}
+			else if (sysID == 3)
+			{
+				scaleMod = 70;
+				sysBaseVel = new Vector2(0, 0);
+				timeMod = 0.1f;
+				// A star representing the combined mass/displacement of the two binary stars
+				Planet starBase = new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 125);
+
+				GenPlanetWOrbit(starBase, new Vector2(0.75f, 0), Color.Yellow, 0.2f, 500, 1);
+				GenPlanetWOrbit(starBase, new Vector2(-0.75f, 0), Color.Yellow, 0.2f, 500, -1);
+				starBase.Mass = 1000;
+
+				GenPlanetWOrbit(starBase, new Vector2(0, 4), Color.DeepPink, 0.1f, 1, 1);
+
+				GenPlanetWOrbit(starBase, new Vector2(0, -4), Color.Green, 0.1f, 1, 1);
+
+				GenPlanetWOrbit(starBase, new Vector2(0, -7), Color.Red, 0.15f, 3, 1);
+
+				GenAsteroidBelt(3.5f, 4.5f, 1000, starBase);
 			}
 		}
 
