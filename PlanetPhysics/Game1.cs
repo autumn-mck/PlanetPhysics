@@ -32,6 +32,7 @@ namespace PlanetPhysics
 		private float scaleMod = 80;
 		private int prevScroll = 0;
 		private float timeMod = 0.1f;
+		private int prevPosScale = 1;
 
 		private Vector2 sysBaseVel = new Vector2(0, 0);
 
@@ -41,6 +42,8 @@ namespace PlanetPhysics
 
 		private float desiredRadius = 0.1f;
 		private float desiredMass = 10;
+
+		private float universalG = 1;
 
 		private Planet focusPlanet;
 		private Planet drawLinesRelativeTo;
@@ -66,7 +69,7 @@ namespace PlanetPhysics
 			_graphics.PreferredBackBufferHeight = (int)windowSize.Y;
 			_graphics.ApplyChanges();
 
-			GenSystem(3);
+			GenSystem(5);
 
 			base.Initialize();
 
@@ -79,7 +82,7 @@ namespace PlanetPhysics
 			float rOrbit = diff.Length();
 			float angle = MathF.Atan(diff.Y / diff.X);
 			float vel = MathF.Sqrt(toOrbit.Mass / rOrbit) * dir;
-			planets.Add(new Planet(colour, radius, vel * new Vector2(-MathF.Sin(angle), MathF.Cos(angle)) + sysBaseVel, toOrbit.Displacement + diff, mass));
+			planets.Add(new Planet(colour, radius, vel * new Vector2(-MathF.Sin(angle), MathF.Cos(angle)) + toOrbit.Velocity, toOrbit.Displacement + diff, mass));
 		}
 
 		private void GenAsteroidBelt(float rMin, float rMax, int astCount, Planet around, float dir = 1)
@@ -110,6 +113,7 @@ namespace PlanetPhysics
 			if (kState.IsKeyDown(Keys.Escape))
 				Exit();
 
+			// TODO: Better way to do this?
 			if (!prevKeysDown.Contains(Keys.F1) && kState.IsKeyDown(Keys.F1))
 			{
 				GenSystem(1);
@@ -121,6 +125,14 @@ namespace PlanetPhysics
 			else if (!prevKeysDown.Contains(Keys.F3) && kState.IsKeyDown(Keys.F3))
 			{
 				GenSystem(3);
+			}
+			else if (!prevKeysDown.Contains(Keys.F4) && kState.IsKeyDown(Keys.F4))
+			{
+				GenSystem(4);
+			}
+			else if (!prevKeysDown.Contains(Keys.F5) && kState.IsKeyDown(Keys.F5))
+			{
+				GenSystem(5);
 			}
 			else if (!prevKeysDown.Contains(Keys.F12) && kState.IsKeyDown(Keys.F12))
 			{
@@ -236,71 +248,198 @@ namespace PlanetPhysics
 		{
 			planets.Clear();
 			cameraPos = Vector2.Zero;
+			focusPlanet = null;
+			drawLinesRelativeTo = null;
+			prevPosScale = 1;
+			universalG = 1;
 
 			if (sysID == 1)
 			{
-				timeMod = 0.01f;
-				sysBaseVel = new Vector2(0, 0);
-				scaleMod = 80;
-				// Initialise the system with a bunch of planets
-				// Sun
-				Planet sun = new Planet(Color.Yellow, 0.2f, sysBaseVel, Vector2.Zero, 1000);
-				planets.Add(sun);
-
-				GenPlanetWOrbit(sun, new Vector2(1, 0), Color.Red, 0.05f, 05f, 1);
-
-				GenPlanetWOrbit(sun, new Vector2(0, 3.5f), Color.Blue, 0.075f, 1, 1);
-				GenPlanetWOrbit(sun, new Vector2(0, -4.5f), Color.Purple, 0.075f, 1, 1);
-
-				GenPlanetWOrbit(sun, new Vector2(0, -10), Color.Green, 0.1f, 5, 1);
-				GenPlanetWOrbit(planets[^1], new Vector2(0, -0.3f), new Color(192, 164, 0), 0.01f, 0.01f, 1.5f);
-				GenAsteroidBelt(0.15f, 0.3f, 200, planets[^2], -1);
-
-				GenPlanetWOrbit(sun, new Vector2(-15, 0), Color.Gold, 0.17f, 5, -1);
-				GenPlanetWOrbit(planets[^1], new Vector2(-0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -1.7f);
-				GenPlanetWOrbit(planets[^2], new Vector2(0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -3.5f);
-
-				// Comet
-				planets.Add(new Planet(Color.White, 0.05f, new Vector2(-2, -2) + sysBaseVel, new Vector2(-6, 6), 0.5f));
-
-				GenAsteroidBelt(6, 7, 500, sun);
-				GenAsteroidBelt(1.5f, 2.5f, 150, sun);
-				GenAsteroidBelt(19, 22, 1000, sun);
-
-				focusPlanet = planets[4];
-				drawLinesRelativeTo = planets[4];
+				GenFakeSystem();
 			}
 			else if (sysID == 2)
 			{
-				sysBaseVel = Vector2.Zero;
-				scaleMod = 88;
-				Vector2 vel = new Vector2(0.93240737f, 0.86473146f);
-				Vector2 pos1 = new Vector2(-0.97000436f, 0.24308753f);
-				planets.Add(new Planet(Color.Red, 0.1f, -vel / 2, pos1, 1));
-				planets.Add(new Planet(Color.Green, 0.1f, -vel / 2, -pos1, 1));
-				planets.Add(new Planet(Color.Blue, 0.1f, vel, new Vector2(0, 0), 1)); ;
-				GenAsteroidBelt(1, 10, 1000, new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 3), 1);
+				GenFigEight();
 			}
 			else if (sysID == 3)
 			{
-				scaleMod = 70;
-				sysBaseVel = new Vector2(0, 0);
-				timeMod = 0.1f;
-				// A star representing the combined mass/displacement of the two binary stars
-				Planet starBase = new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 125);
-
-				GenPlanetWOrbit(starBase, new Vector2(0.75f, 0), Color.Yellow, 0.2f, 500, 1);
-				GenPlanetWOrbit(starBase, new Vector2(-0.75f, 0), Color.Yellow, 0.2f, 500, -1);
-				starBase.Mass = 1000;
-
-				GenPlanetWOrbit(starBase, new Vector2(0, 4), Color.DeepPink, 0.1f, 1, 1);
-
-				GenPlanetWOrbit(starBase, new Vector2(0, -4), Color.Green, 0.1f, 1, 1);
-
-				GenPlanetWOrbit(starBase, new Vector2(0, -7), Color.Red, 0.15f, 3, 1);
-
-				GenAsteroidBelt(3.5f, 4.5f, 1000, starBase);
+				GenBinarySystem();
 			}
+			else if (sysID == 4)
+			{
+				GenSol(false);
+			}
+			else if (sysID == 5)
+			{
+				GenSol(true);
+			}
+		}
+
+		private void GenFakeSystem()
+		{
+			timeMod = 0.1f;
+			sysBaseVel = new Vector2(0, 0);
+			scaleMod = 80;
+			// Initialise the system with a bunch of planets
+			// Sun
+			Planet sun = new Planet(Color.Yellow, 0.2f, sysBaseVel, Vector2.Zero, 1000);
+			planets.Add(sun);
+
+			GenPlanetWOrbit(sun, new Vector2(1, 0), Color.Red, 0.05f, 05f, 1);
+
+			GenPlanetWOrbit(sun, new Vector2(0, 3.5f), Color.DodgerBlue, 0.075f, 1, 1);
+			GenPlanetWOrbit(sun, new Vector2(0, -4.5f), Color.Purple, 0.075f, 1, 1);
+
+			GenPlanetWOrbit(sun, new Vector2(0, -10), Color.Green, 0.1f, 5, 1);
+			GenPlanetWOrbit(planets[^1], new Vector2(0, -0.3f), new Color(192, 164, 0), 0.01f, 0.01f, -1f);
+			GenAsteroidBelt(0.15f, 0.3f, 50, planets[^2], -1);
+
+			GenPlanetWOrbit(sun, new Vector2(-15, 0), Color.Gold, 0.17f, 5, -1);
+			focusPlanet = planets[^1];
+			drawLinesRelativeTo = planets[^1];
+			GenPlanetWOrbit(planets[^1], new Vector2(-0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, 1f);
+			GenPlanetWOrbit(planets[^2], new Vector2(0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -1f);
+
+			// Comet
+			planets.Add(new Planet(Color.White, 0.05f, new Vector2(-2, -2) + sysBaseVel, new Vector2(-6, 6), 0.5f));
+
+			GenAsteroidBelt(6, 7, 500, sun);
+			GenAsteroidBelt(1.5f, 2.5f, 150, sun);
+			GenAsteroidBelt(19, 22, 400, sun);
+
+		}
+
+		private void GenFigEight()
+		{
+			timeMod = 0.5f;
+			sysBaseVel = Vector2.Zero;
+			scaleMod = 88;
+			Vector2 vel = new Vector2(0.93240737f, 0.86473146f);
+			Vector2 pos1 = new Vector2(-0.97000436f, 0.24308753f);
+			planets.Add(new Planet(Color.Red, 0.1f, -vel / 2, pos1, 1));
+			planets.Add(new Planet(Color.Green, 0.1f, -vel / 2, -pos1, 1));
+			planets.Add(new Planet(Color.DodgerBlue, 0.1f, vel, new Vector2(0, 0), 1)); ;
+			GenAsteroidBelt(1, 10, 1000, new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 3), 1);
+		}
+
+		private void GenBinarySystem()
+		{
+			scaleMod = 70;
+			sysBaseVel = new Vector2(0, 0);
+			timeMod = 0.1f;
+			// A star representing the combined mass/displacement of the two binary stars
+			Planet starBase = new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 125);
+
+			GenPlanetWOrbit(starBase, new Vector2(0.75f, 0), Color.Yellow, 0.2f, 500, 1);
+			GenPlanetWOrbit(starBase, new Vector2(-0.75f, 0), Color.Yellow, 0.2f, 500, -1);
+			starBase.Mass = 1000;
+
+			GenPlanetWOrbit(starBase, new Vector2(0, 4), Color.DeepPink, 0.1f, 1, 1);
+
+			GenPlanetWOrbit(starBase, new Vector2(0, -4), Color.Green, 0.1f, 1, 1);
+
+			GenPlanetWOrbit(starBase, new Vector2(0, -7), Color.Red, 0.15f, 3, 1);
+
+			GenAsteroidBelt(3.5f, 4.5f, 1000, starBase);
+		}
+
+		private void GenSol(bool isAccurate)
+		{
+			// Distances are in km x 10^3
+			// Masses are in kg x 10^25
+
+			// TODO: Orbits of moons should be in correct direction
+			if (isAccurate)
+			{
+				prevPosScale = 10000;
+				timeMod = 100f;
+			}
+			else
+			{
+				prevPosScale = 100000;
+				timeMod = 100000f;
+			}
+			sysBaseVel = Vector2.Zero;
+			scaleMod = 0.01f;
+			// Update universal g
+
+			bool shouldAddMoons = isAccurate;
+
+			// TODO: Orbits are not perfectly circular in real life
+
+			Planet sun = new Planet(Color.Yellow, 695.7f, Vector2.Zero, Vector2.Zero, 198850);
+			planets.Add(sun);
+
+			// Mercury
+			GenPlanetWOrbit(sun, new Vector2(55000, 0), Color.Gray, 2.4397f, 0.033011f, 1);
+
+			// Venus
+			GenPlanetWOrbit(sun, new Vector2(108000, 0), Color.Orange, 6.052f, 0.48675f, 1);
+
+			// Earth
+			GenPlanetWOrbit(sun, new Vector2(150000, 0), Color.Green, 6.371f, 0.597237f, 1);
+			// Our Moon
+			if (shouldAddMoons) GenPlanetWOrbit(planets[^1], new Vector2(384.4f, 0), Color.Gray, 1.737f, 0.007342f, 1f);
+
+			// Mars
+			GenPlanetWOrbit(sun, new Vector2(225000, 0), Color.Red, 3.3895f, 0.064171f, 1);
+			// TODO: Without improvements to the physics simulation, Mars' moons are close enough that a lower simulation speed is needed to keep them in orbit
+			if (shouldAddMoons)
+			{
+				// Phobos
+				GenPlanetWOrbit(planets[^1], new Vector2(9.376f, 0), Color.Gray, 0.012f, 0.0000000001f, 1);
+				// Deimos
+				GenPlanetWOrbit(planets[^2], new Vector2(23.4632f, 0), Color.Gray, 0.012f, 0.00000000001f, 1);
+			}
+
+			// Jupiter
+			GenPlanetWOrbit(sun, new Vector2(775000, 0), Color.SandyBrown, 69.911f, 189.02f, 1);
+			if (shouldAddMoons)
+			{
+				focusPlanet = planets[^1];
+				drawLinesRelativeTo = planets[^1];
+				// TODO: Moons could probably be different colours
+				GenPlanetWOrbit(planets[^1], new Vector2(421.7f, 0), Color.SandyBrown, 1.8216f, 0.008931938f, 1);
+				GenPlanetWOrbit(planets[^2], new Vector2(670.9f, 0), Color.SandyBrown, 1.5608f, 0.0048f, 1);
+				GenPlanetWOrbit(planets[^3], new Vector2(1070.4f, 0), Color.SandyBrown, 2.6341f, 0.014819f, 1);
+				GenPlanetWOrbit(planets[^4], new Vector2(1882.7f, 0), Color.SandyBrown, 2.4103f, 0.01075f, 1);
+				// I'm not adding all 80-ish moons
+
+				GenAsteroidBelt(92, 226, 200, planets[^5]);
+			}
+
+			// Saturn
+			GenPlanetWOrbit(sun, new Vector2(1433000, 0), Color.Beige, 58.232f, 56.834f, 1);
+			if (shouldAddMoons)
+			{
+				// Titan
+				GenPlanetWOrbit(planets[^1], new Vector2(1221, 0), Color.Beige, 2.574f, 0.0013452f, 1);
+				// Rings
+				GenAsteroidBelt(80, 120, 200, planets[^2]);
+			}
+
+			// Uranus
+			GenPlanetWOrbit(sun, new Vector2(3008000, 0), Color.Aquamarine, 25.362f, 8.681f, 1);
+			// TODO: Uranus has moons and rings, but they're minor enough that I'm leaving them for now
+
+			// Neptune
+			GenPlanetWOrbit(sun, new Vector2(4500000, 0), Color.CornflowerBlue, 24.622f, 10.2413f, 1);
+			if (shouldAddMoons)
+			{
+				Planet neptune = planets[^1];
+				// Triton
+				// TODO: Should go in opposite directions to normal moons
+				GenPlanetWOrbit(neptune, new Vector2(354.759f, 0), Color.CornflowerBlue, 1.3534f, 0.002139f, 1);
+
+				GenAsteroidBelt(41, 43, 50, neptune);
+				GenAsteroidBelt(52, 54, 50, neptune);
+				GenAsteroidBelt(62, 64, 50, neptune);
+
+			}
+
+			GenAsteroidBelt(344075f, 448793f, 600, sun, 1);
+
+			GenAsteroidBelt(4487936f, 7479894f, 1000, sun, 1);
 		}
 
 		private Vector2 GetMousePosInSpace(Vector2 mousePos)
@@ -357,7 +496,7 @@ namespace PlanetPhysics
 						Vector2 direction = (p.Displacement - pOther.Displacement).NormalizedCopy();
 
 						// Calculate gravity.
-						float f = p.Mass * pOther.Mass / distSqr;
+						float f = universalG * p.Mass * pOther.Mass / distSqr;
 
 						forces -= direction * f;
 					}
@@ -461,7 +600,7 @@ namespace PlanetPhysics
 
 					if (!p.IsDebris && !p.IsAsteroid)
 					{
-						if (Math.Round(p.TimeExisted, 3, MidpointRounding.ToZero) > Math.Round(p.PrevTimeUpdated, 3, MidpointRounding.ToZero))
+						if (Math.Round(p.TimeExisted / prevPosScale, 3, MidpointRounding.ToZero) > Math.Round(p.PrevTimeUpdated / prevPosScale, 3, MidpointRounding.ToZero))
 						{
 							p.PointIndex++;
 							if (p.PointIndex == p.PrevPoints.Length)
@@ -549,7 +688,7 @@ namespace PlanetPhysics
 
 			foreach (Planet p in ps)
 			{
-				if (p.IsDebris || p.IsAsteroid) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Colour, Math.Min(MathF.Max(0.05f * scaleMod, 1), 5));
+				if (p.IsDebris || p.IsAsteroid) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Colour, Math.Min(MathF.Max(0.05f * scaleMod, 1), 3));
 				else _spriteBatch.DrawCircle(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Radius * scaleMod, 20, p.Colour, p.Radius / 5 * scaleMod);
 			}
 			// Show the user where they're aiming when preparing to add a new planet
