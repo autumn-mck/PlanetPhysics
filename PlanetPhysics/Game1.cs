@@ -224,7 +224,16 @@ namespace PlanetPhysics
 				float leeway = 16;
 				if ((nearest.Displacement - mPosInSpace).LengthSquared() < nearest.Radius * nearest.Radius * leeway)
 				{
-					if (focusPlanet == nearest) drawLinesRelativeTo = nearest;
+					if (focusPlanet == nearest)
+					{
+						drawLinesRelativeTo = nearest;
+						Planet[] pLocal = planets.Where(p => !p.IsAsteroid && !p.IsDebris).ToArray();
+						foreach (Planet p in pLocal)
+						{
+							Array.Clear(p.PrevPoints, 0, p.PrevPoints.Length);
+							p.PointIndex = 0;
+						}
+					}
 					else focusPlanet = nearest;
 				}
 			}
