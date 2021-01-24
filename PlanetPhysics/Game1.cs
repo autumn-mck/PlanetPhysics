@@ -31,6 +31,7 @@ namespace PlanetPhysics
 		private Vector2 cameraPos;
 		private float scaleMod = 80;
 		private int prevScroll = 0;
+		private float timeMod = 0.1f;
 
 		private Vector2 sysBaseVel = new Vector2(0, 0);
 
@@ -65,7 +66,7 @@ namespace PlanetPhysics
 			_graphics.PreferredBackBufferHeight = (int)windowSize.Y;
 			_graphics.ApplyChanges();
 
-			GenSystem(2);
+			GenSystem(1);
 
 			base.Initialize();
 
@@ -81,14 +82,16 @@ namespace PlanetPhysics
 			planets.Add(new Planet(colour, radius, vel * new Vector2(-MathF.Sin(angle), MathF.Cos(angle)) + sysBaseVel, toOrbit.Displacement + diff, mass));
 		}
 
-		private void GenAsteroidBelt(float rMin, float rMax, int astCount, float aroundMass)
+		private void GenAsteroidBelt(float rMin, float rMax, int astCount, Planet around, float dir = 1)
 		{
 			for (int i = 0; i < astCount; i++)
 			{
 				float rOrbit = rMin + (float)random.NextDouble() * (rMax - rMin);
 				float pos = (float)random.NextDouble() * 2 * MathF.PI;
-				float vel = MathF.Sqrt(aroundMass / rOrbit);
-				planets.Add(new Planet(Color.Gray, 0.01f, vel * new Vector2(-MathF.Sin(pos), MathF.Cos(pos)) + sysBaseVel, rOrbit * new Vector2(MathF.Cos(pos), MathF.Sin(pos)), 1, false, true));
+				float velMag = MathF.Sqrt(around.Mass / rOrbit);
+				Vector2 velocity = dir * velMag * new Vector2(-MathF.Sin(pos), MathF.Cos(pos)) + around.Velocity;
+				Vector2 displacement = rOrbit * new Vector2(MathF.Cos(pos), MathF.Sin(pos)) + around.Displacement;
+				planets.Add(new Planet(Color.Gray, 0.01f, velocity, displacement, 1, false, true));
 			}
 		}
 
@@ -232,6 +235,7 @@ namespace PlanetPhysics
 
 			if (sysID == 1)
 			{
+				timeMod = 0.01f;
 				//sysBaseVel = new Vector2(10, -10);
 				scaleMod = 80;
 				// Initialise the system with a bunch of planets
@@ -246,6 +250,7 @@ namespace PlanetPhysics
 
 				GenPlanetWOrbit(sun, new Vector2(0, -10), Color.Green, 0.1f, 5, 1);
 				GenPlanetWOrbit(planets[^1], new Vector2(0, -0.3f), new Color(192, 164, 0), 0.01f, 0.01f, 1.5f);
+				GenAsteroidBelt(0.15f, 0.3f, 200, planets[^2], -1);
 
 				GenPlanetWOrbit(sun, new Vector2(-15, 0), Color.Gold, 0.17f, 5, -1);
 				GenPlanetWOrbit(planets[^1], new Vector2(-0.5f, 0), Color.SkyBlue, 0.01f, 0.01f, -1.7f);
@@ -254,22 +259,23 @@ namespace PlanetPhysics
 				// Comet
 				planets.Add(new Planet(Color.White, 0.05f, new Vector2(-2, -2) + sysBaseVel, new Vector2(-6, 6), 0.5f));
 
-				GenAsteroidBelt(6, 7, 500, planets[0].Mass);
-				GenAsteroidBelt(1.5f, 2.5f, 150, planets[0].Mass);
-				GenAsteroidBelt(19, 22, 1000, planets[0].Mass);
+				GenAsteroidBelt(6, 7, 500, sun);
+				GenAsteroidBelt(1.5f, 2.5f, 150, sun);
+				GenAsteroidBelt(19, 22, 1000, sun);
 
-				focusPlanet = planets[0];
-				drawLinesRelativeTo = planets[0];
+				focusPlanet = planets[4];
+				drawLinesRelativeTo = planets[4];
 			}
 			else if (sysID == 2)
 			{
+				sysBaseVel = Vector2.Zero;
 				scaleMod = 88;
 				Vector2 vel = new Vector2(0.93240737f, 0.86473146f);
 				Vector2 pos1 = new Vector2(-0.97000436f, 0.24308753f);
 				planets.Add(new Planet(Color.Red, 0.1f, -vel / 2, pos1, 1));
 				planets.Add(new Planet(Color.Green, 0.1f, -vel / 2, -pos1, 1));
 				planets.Add(new Planet(Color.Blue, 0.1f, vel, new Vector2(0, 0), 1)); ;
-				GenAsteroidBelt(1, 10, 1000, 3);
+				GenAsteroidBelt(1, 10, 1000, new Planet(Color.Transparent, 0, sysBaseVel, Vector2.Zero, 3), 1);
 			}
 		}
 
@@ -290,7 +296,7 @@ namespace PlanetPhysics
 			watch.Start();
 			while (true)
 			{
-				float tPassed = watch.ElapsedMilliseconds / 1000f / 10f;
+				float tPassed = watch.ElapsedMilliseconds / 1000f * timeMod;
 				watch.Restart();
 				// Update the time existed and check if debris should be removed
 				Planet[] pArr = planets.ToArray();
@@ -519,7 +525,7 @@ namespace PlanetPhysics
 
 			foreach (Planet p in ps)
 			{
-				if (p.IsDebris || p.IsAsteroid) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Colour, MathF.Max(0.05f * scaleMod, 1));
+				if (p.IsDebris || p.IsAsteroid) _spriteBatch.DrawPoint(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Colour, Math.Min(MathF.Max(0.05f * scaleMod, 1), 5));
 				else _spriteBatch.DrawCircle(p.Displacement * scaleMod + cameraPos + windowSize / 2, p.Radius * scaleMod, 20, p.Colour, p.Radius / 5 * scaleMod);
 			}
 			// Show the user where they're aiming when preparing to add a new planet
