@@ -40,6 +40,8 @@ namespace PlanetPhysics
 		private Vector2 mouseCurrentPos;
 		private bool preparingToAdd = false;
 
+		private Planet movingPlanet;
+
 		private float desiredRadius = 0.1f;
 		private float desiredMass = 10;
 
@@ -183,8 +185,19 @@ namespace PlanetPhysics
 			// Allow the user to add planets with the desired position/velocity
 			mouseCurrentPos = mState.Position.ToVector2();
 
+			if (mState.LeftButton == ButtonState.Pressed && movingPlanet is null)
+			{
+				Vector2 mPosInSpace = GetMousePosInSpace(mouseCurrentPos);
+				Planet nearest = GetNearestPlanetToPoint(mPosInSpace);
+				if ((nearest.Displacement - mPosInSpace).LengthSquared() < nearest.Radius * nearest.Radius)
+				{
+					movingPlanet = nearest;
+				}
+			}
+			else if (mState.LeftButton == ButtonState.Pressed && !(movingPlanet is null)) { }
+			else if (mState.LeftButton == ButtonState.Released && !(movingPlanet is null)) movingPlanet = null;
 			// If the user has just clicked
-			if (!preparingToAdd && mState.LeftButton == ButtonState.Pressed)
+			else if (!preparingToAdd && mState.LeftButton == ButtonState.Pressed)
 			{
 				mouseStartPos = mouseCurrentPos;
 				preparingToAdd = true;
@@ -242,6 +255,7 @@ namespace PlanetPhysics
 			if (mState.RightButton == ButtonState.Pressed)
 			{
 				focusPlanet = null;
+				//drawLinesRelativeTo = null;
 				//Vector2 position = GetMousePosInSpace(mouseCurrentPos);
 				//for (int i = 0; i < 10; i++)
 				//{
@@ -459,6 +473,11 @@ namespace PlanetPhysics
 			return (mousePos - cameraPos - windowSize / 2) / scaleMod;
 		}
 
+		private Vector2 MapSpaceToMouse(Vector2 spacePos)
+		{
+			return (spacePos * scaleMod) + cameraPos + windowSize / 2;
+		}
+
 		private Planet GetNearestPlanetToPoint(Vector2 point)
 		{
 			Planet[] pLocal = planets.ToArray();
@@ -495,6 +514,12 @@ namespace PlanetPhysics
 					if (toRemove.Contains(p)) continue;
 
 					Vector2 forces = p.Forces;
+
+					if (p == movingPlanet)
+					{
+						Vector2 diff = p.Displacement - GetMousePosInSpace(mouseCurrentPos);
+						forces -= diff.NormalizedCopy() * diff.LengthSquared() * p.Radius / scaleMod * p.Mass / timeMod / timeMod / timeMod / timeMod / 100f;
+					}
 
 					foreach (Planet pOther in pArr)
 					{
@@ -705,6 +730,7 @@ namespace PlanetPhysics
 			}
 			// Show the user where they're aiming when preparing to add a new planet
 			if (preparingToAdd) _spriteBatch.DrawLine(mouseStartPos, mouseCurrentPos, Color.Red);
+			if (!(movingPlanet is null)) _spriteBatch.DrawLine(mouseCurrentPos, MapSpaceToMouse(movingPlanet.Displacement), Color.Red);
 
 			//_spriteBatch.DrawString(debugFont, debugText, Vector2.Zero, new Color(200, 200, 200));
 			_spriteBatch.DrawString(debugFont, $"Desired Mass: {desiredMass}\nDesired radius: {desiredRadius}", Vector2.Zero, new Color(200, 200, 200));
