@@ -240,22 +240,21 @@ namespace PlanetPhysics
 					if (focusPlanet == nearest)
 					{
 						drawLinesRelativeTo = nearest;
-						Planet[] pLocal = planets.Where(p => !p.IsAsteroid && !p.IsDebris).ToArray();
-						foreach (Planet p in pLocal)
-						{
-							Array.Clear(p.PrevPoints, 0, p.PrevPoints.Length);
-							p.PointIndex = 0;
-						}
+						ResetDrawingFromLines();
 					}
 					else focusPlanet = nearest;
 				}
 			}
 
 			// Create debris if the right mouse button is held down
-			if (mState.RightButton == ButtonState.Pressed)
+			if (mState.RightButton == ButtonState.Pressed && prevMState.RightButton == ButtonState.Released)
 			{
-				focusPlanet = null;
-				//drawLinesRelativeTo = null;
+				if (!(focusPlanet is null)) focusPlanet = null;
+				else
+				{
+					drawLinesRelativeTo = null;
+					ResetDrawingFromLines();
+				}
 				//Vector2 position = GetMousePosInSpace(mouseCurrentPos);
 				//for (int i = 0; i < 10; i++)
 				//{
@@ -268,6 +267,16 @@ namespace PlanetPhysics
 			prevKeysDown = kState.GetPressedKeys();
 			prevMState = mState;
 			base.Update(gameTime);
+		}
+
+		private void ResetDrawingFromLines()
+		{
+			Planet[] pLocal = planets.Where(p => !p.IsAsteroid && !p.IsDebris).ToArray();
+			foreach (Planet p in pLocal)
+			{
+				Array.Clear(p.PrevPoints, 0, p.PrevPoints.Length);
+				p.PointIndex = 0;
+			}
 		}
 
 		private void GenSystem(int sysID)
